@@ -44,9 +44,9 @@ function checkAlerts() {
 }
 
 function getTremorParams() {
-  var diffMin = 0.09 - (tremorSens - 1) * 0.005;
+  var diffMin = 0.08 - (tremorSens - 1) * 0.005;
   var diffMax = 0.22;
-  var countThresh = 20 - (tremorSens - 1) * 1;
+  var countThresh = 18 - (tremorSens - 1) * 1;
   return {diffMin: diffMin, diffMax: diffMax, countThresh: countThresh};
 }
 
@@ -161,7 +161,7 @@ Bangle.on('accel', function(acc) {
       if (tremorStable < 0) tremorStable = 0;
     }
 
-    tremorDetected = (tremorStable >= 3);
+    tremorDetected = (tremorStable >= 2);
     tremorLevel = Math.min(100, Math.round(tremorTicks * 100 / ACCEL_WIN));
 
     checkAlerts();
