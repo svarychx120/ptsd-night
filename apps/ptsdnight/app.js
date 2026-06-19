@@ -1,4 +1,4 @@
-var hrThreshold = 100;
+var hrThreshold = 140;
 var tremorSens = 5;
 var isVibrating = false;
 var vibrationInterval = null;
@@ -44,9 +44,9 @@ function checkAlerts() {
 }
 
 function getTremorParams() {
-  var diffMin = 0.10 - (tremorSens - 1) * 0.005;
-  var diffMax = 0.22;
-  var countThresh = 20 - (tremorSens - 1) * 1;
+  var diffMin = 0.14 - (tremorSens - 1) * 0.005;
+  var diffMax = 0.20;
+  var countThresh = 22 - (tremorSens - 1) * 1;
   return {diffMin: diffMin, diffMax: diffMax, countThresh: countThresh};
 }
 
@@ -105,7 +105,7 @@ function draw() {
 }
 
 Bangle.on('HRM', function(hrm) {
-  if (hrm.bpm && hrm.confidence > 85) {
+  if (hrm.bpm && hrm.confidence > 90) {
     if (lastValidBpm === null) {
       lastValidBpm = hrm.bpm;
       bpmLastValue = hrm.bpm;
@@ -161,7 +161,7 @@ Bangle.on('accel', function(acc) {
       if (tremorStable < 0) tremorStable = 0;
     }
 
-    tremorDetected = (tremorStable >= 3);
+    tremorDetected = (tremorStable >= 5);
     tremorLevel = Math.min(100, Math.round(tremorTicks * 100 / ACCEL_WIN));
 
     checkAlerts();

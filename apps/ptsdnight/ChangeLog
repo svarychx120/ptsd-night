@@ -3,3 +3,4 @@
 0.03: Fixed tremor false positives — switched to diff-based frequency counting
 0.04: Fixed bug where sensitivity didn't affect tick counting, raised min thresholds
 0.05: Raised HRM confidence threshold to 85%, require 2 stable readings, expire stale BPM after 10s
+0.06: Default HR threshold 140, confidence 90, tremor detector much stricter
