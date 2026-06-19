@@ -4,6 +4,8 @@ var isVibrating = false;
 var vibrationInterval = null;
 var currentBpm = null;
 var lastValidBpm = null;
+var bpmStableCount = 0;
+var bpmLastValue = 0;
 var tremorDetected = false;
 var tremorLevel = 0;
 var tremorStable = 0;
@@ -13,6 +15,7 @@ var windowIdx = 0;
 var tremorTicks = 0;
 var tickCount = 0;
 var lastDraw = 0;
+var lastBpmTime = 0;
 
 function startVibrating() {
   if (isVibrating) return;
@@ -52,7 +55,12 @@ function draw() {
   if (now - lastDraw < 0.3 && !tremorDetected) return;
   lastDraw = now;
 
-  var bpm = currentBpm !== null ? currentBpm.toString() : (lastValidBpm ? lastValidBpm.toString() : "---");
+  var bpm = "---";
+  if (currentBpm !== null) {
+    bpm = currentBpm.toString();
+  } else if (lastValidBpm) {
+    bpm = lastValidBpm.toString();
+  }
   var barH = 20;
   var W = g.getWidth();
   var H = g.getHeight();
@@ -97,10 +105,32 @@ function draw() {
 }
 
 Bangle.on('HRM', function(hrm) {
-  if (hrm.bpm && hrm.confidence > 50) {
-    lastValidBpm = hrm.bpm;
-    currentBpm = hrm.bpm;
+  if (hrm.bpm && hrm.confidence > 85) {
+    if (lastValidBpm === null) {
+      lastValidBpm = hrm.bpm;
+      bpmLastValue = hrm.bpm;
+      bpmStableCount = 1;
+      lastBpmTime = getTime();
+    } else if (Math.abs(hrm.bpm - bpmLastValue) < 6) {
+      bpmStableCount = bpmStableCount + 1;
+      bpmLastValue = hrm.bpm;
+      lastValidBpm = hrm.bpm;
+      lastBpmTime = getTime();
+      if (bpmStableCount >= 2) {
+        currentBpm = hrm.bpm;
+      }
+    } else {
+      bpmLastValue = hrm.bpm;
+      bpmStableCount = 1;
+    }
   }
+
+  if (getTime() - lastBpmTime > 10) {
+    currentBpm = null;
+    lastValidBpm = null;
+    bpmStableCount = 0;
+  }
+
   checkAlerts();
   draw();
 });
