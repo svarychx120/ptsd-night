@@ -1,0 +1,15 @@
+{ "id": "ptsdnight",
+  "name": "PTSD Night Watch",
+  "shortName": "PTSD Night",
+  "icon": "app.png",
+  "version": "0.01",
+  "author": "ptsdnight",
+  "description": "Monitors heart rate and vibrates continuously if BPM exceeds threshold, helping alert during PTSD episodes",
+  "tags": "health,tool",
+  "supports": ["BANGLEJS2"],
+  "readme": "README.md",
+  "storage": [
+    {"name": "ptsdnight.app.js", "url": "app.js"},
+    {"name": "ptsdnight.img", "url": "app-icon.js", "evaluate": true}
+  ]
+}
