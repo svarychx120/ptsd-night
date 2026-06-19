@@ -41,9 +41,9 @@ function checkAlerts() {
 }
 
 function getTremorParams() {
-  var diffMin = 0.08 - (tremorSens - 1) * 0.006;
+  var diffMin = 0.10 - (tremorSens - 1) * 0.005;
   var diffMax = 0.22;
-  var countThresh = 22 - (tremorSens - 1) * 1;
+  var countThresh = 20 - (tremorSens - 1) * 1;
   return {diffMin: diffMin, diffMax: diffMax, countThresh: countThresh};
 }
 
@@ -68,7 +68,7 @@ function draw() {
 
   g.setColor("#ffffff");
   g.setFont("6x8", 1).setFontAlign(-1, -1);
-  g.drawString("T:" + tremorSens + "/10  L:" + tremorLevel + "%", 4, 2);
+  g.drawString("T:" + tremorSens + "/10  " + tremorTicks + "/" + ACCEL_WIN, 4, 2);
   g.setFontAlign(1, -1);
   g.drawString(isVibrating ? "ALERT" : "OK", W - 4, 2);
 
@@ -106,11 +106,12 @@ Bangle.on('HRM', function(hrm) {
 });
 
 Bangle.on('accel', function(acc) {
+  var p = getTremorParams();
   var oldDiff = diffWindow[windowIdx];
   var newDiff = acc.diff;
 
-  if (oldDiff > 0.02 && oldDiff < 0.22) tremorTicks--;
-  if (newDiff > 0.02 && newDiff < 0.22) tremorTicks++;
+  if (oldDiff > p.diffMin && oldDiff < p.diffMax) tremorTicks--;
+  if (newDiff > p.diffMin && newDiff < p.diffMax) tremorTicks++;
 
   diffWindow[windowIdx] = newDiff;
   windowIdx = windowIdx + 1;
@@ -120,7 +121,6 @@ Bangle.on('accel', function(acc) {
   if (tickCount >= ACCEL_WIN) tickCount = ACCEL_WIN;
 
   if (tickCount >= ACCEL_WIN) {
-    var p = getTremorParams();
     var isTremorNow = (tremorTicks >= p.countThresh);
 
     if (isTremorNow) {
@@ -131,7 +131,7 @@ Bangle.on('accel', function(acc) {
       if (tremorStable < 0) tremorStable = 0;
     }
 
-    tremorDetected = (tremorStable >= 2);
+    tremorDetected = (tremorStable >= 3);
     tremorLevel = Math.min(100, Math.round(tremorTicks * 100 / ACCEL_WIN));
 
     checkAlerts();
