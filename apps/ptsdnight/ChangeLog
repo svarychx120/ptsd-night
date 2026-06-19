@@ -1,2 +1,3 @@
 0.01: New App!
 0.02: Added accelerometer-based tremor detection
+0.03: Fixed tremor false positives — switched to diff-based frequency counting

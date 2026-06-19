@@ -6,8 +6,12 @@ var currentBpm = null;
 var lastValidBpm = null;
 var tremorDetected = false;
 var tremorLevel = 0;
-var accelWindow = [];
+var tremorStable = 0;
 var ACCEL_WIN = 25;
+var diffWindow = new Float32Array(ACCEL_WIN);
+var windowIdx = 0;
+var tremorTicks = 0;
+var tickCount = 0;
 var lastDraw = 0;
 
 function startVibrating() {
@@ -34,6 +38,13 @@ function checkAlerts() {
   } else {
     stopVibrating();
   }
+}
+
+function getTremorParams() {
+  var diffMin = 0.08 - (tremorSens - 1) * 0.006;
+  var diffMax = 0.22;
+  var countThresh = 22 - (tremorSens - 1) * 1;
+  return {diffMin: diffMin, diffMax: diffMax, countThresh: countThresh};
 }
 
 function draw() {
@@ -95,26 +106,33 @@ Bangle.on('HRM', function(hrm) {
 });
 
 Bangle.on('accel', function(acc) {
-  accelWindow.push(acc.mag);
-  while (accelWindow.length > ACCEL_WIN) accelWindow.shift();
+  var oldDiff = diffWindow[windowIdx];
+  var newDiff = acc.diff;
 
-  if (accelWindow.length >= ACCEL_WIN) {
-    var sum = 0;
-    for (var i = 0; i < accelWindow.length; i++) sum += accelWindow[i];
-    var mean = sum / accelWindow.length;
+  if (oldDiff > 0.02 && oldDiff < 0.22) tremorTicks--;
+  if (newDiff > 0.02 && newDiff < 0.22) tremorTicks++;
 
-    var sqSum = 0;
-    for (var j = 0; j < accelWindow.length; j++) {
-      var d = accelWindow[j] - mean;
-      sqSum += d * d;
+  diffWindow[windowIdx] = newDiff;
+  windowIdx = windowIdx + 1;
+  if (windowIdx >= ACCEL_WIN) windowIdx = 0;
+
+  tickCount = tickCount + 1;
+  if (tickCount >= ACCEL_WIN) tickCount = ACCEL_WIN;
+
+  if (tickCount >= ACCEL_WIN) {
+    var p = getTremorParams();
+    var isTremorNow = (tremorTicks >= p.countThresh);
+
+    if (isTremorNow) {
+      tremorStable = tremorStable + 1;
+      if (tremorStable > 5) tremorStable = 5;
+    } else {
+      tremorStable = tremorStable - 1;
+      if (tremorStable < 0) tremorStable = 0;
     }
-    var stddev = Math.sqrt(sqSum / accelWindow.length);
 
-    var tremorMin = 0.06 - (tremorSens - 1) * 0.005;
-    var tremorMax = 0.25;
-
-    tremorDetected = (stddev > tremorMin && stddev < tremorMax);
-    tremorLevel = Math.min(100, Math.round(stddev * 400));
+    tremorDetected = (tremorStable >= 2);
+    tremorLevel = Math.min(100, Math.round(tremorTicks * 100 / ACCEL_WIN));
 
     checkAlerts();
     draw();
