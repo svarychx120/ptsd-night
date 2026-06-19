@@ -1,4 +1,5 @@
-var hrThreshold = 140;
+var hrMax = 140;
+var spikeThresh = 20;
 var tremorSens = 1;
 var isVibrating = false;
 var vibrationInterval = null;
@@ -6,6 +7,8 @@ var currentBpm = null;
 var lastValidBpm = null;
 var bpmStableCount = 0;
 var bpmLastValue = 0;
+var bpmHistory = [];
+var spikeDelta = 0;
 var tremorDetected = false;
 var tremorLevel = 0;
 var tremorStable = 0;
@@ -34,9 +37,47 @@ function stopVibrating() {
   }
 }
 
+function checkBpmSpike() {
+  var now = getTime();
+  while (bpmHistory.length > 0 && now - bpmHistory[0].time > 30) {
+    bpmHistory.shift();
+  }
+
+  if (bpmHistory.length < 4) {
+    spikeDelta = 0;
+    return false;
+  }
+
+  var recentSum = 0, recentCount = 0;
+  var baseSum = 0, baseCount = 0;
+
+  for (var i = bpmHistory.length - 1; i >= 0; i--) {
+    var age = now - bpmHistory[i].time;
+    if (age <= 10) {
+      recentSum += bpmHistory[i].bpm;
+      recentCount++;
+    } else {
+      baseSum += bpmHistory[i].bpm;
+      baseCount++;
+    }
+  }
+
+  if (recentCount < 1 || baseCount < 1) {
+    spikeDelta = 0;
+    return false;
+  }
+
+  var recentAvg = recentSum / recentCount;
+  var baseAvg = baseSum / baseCount;
+  spikeDelta = Math.round(recentAvg - baseAvg);
+
+  return (spikeDelta >= spikeThresh && recentAvg >= 70);
+}
+
 function checkAlerts() {
-  var hrAlert = (currentBpm !== null && currentBpm > hrThreshold);
-  if (hrAlert || tremorDetected) {
+  var spikeAlert = checkBpmSpike();
+  var hrAlert = (currentBpm !== null && currentBpm > hrMax);
+  if (spikeAlert || hrAlert || tremorDetected) {
     startVibrating();
   } else {
     stopVibrating();
@@ -52,7 +93,7 @@ function getTremorParams() {
 
 function draw() {
   var now = getTime();
-  if (now - lastDraw < 0.3 && !tremorDetected) return;
+  if (now - lastDraw < 0.3 && !tremorDetected && !isVibrating) return;
   lastDraw = now;
 
   var bpm = "---";
@@ -88,19 +129,27 @@ function draw() {
   g.drawString("bpm", W / 2, H / 2 + 18);
 
   g.setFont("6x8", 1).setFontAlign(0, 0);
-  g.drawString("HR limit: " + hrThreshold, W / 2, H / 2 + 42);
+  var deltaSign = spikeDelta >= 0 ? "+" : "";
+  g.drawString("Spike: " + deltaSign + spikeDelta + "  Limit: +" + spikeThresh, W / 2, H / 2 + 42);
 
   var alertY = H / 2 + 60;
+  var spikeAlert = (currentBpm !== null && spikeDelta >= spikeThresh && currentBpm >= 70);
   if (tremorDetected) {
     g.setColor("#ff6600");
     g.setFont("6x8", 2).setFontAlign(0, 0);
     g.drawString("TREMOR", W / 2, alertY);
     alertY += 18;
   }
-  if (currentBpm !== null && currentBpm > hrThreshold) {
+  if (spikeAlert) {
     g.setColor("#ff0000");
     g.setFont("6x8", 2).setFontAlign(0, 0);
-    g.drawString("HIGH BPM!", W / 2, alertY);
+    g.drawString("SPIKE +" + spikeDelta, W / 2, alertY);
+    alertY += 18;
+  }
+  if (currentBpm !== null && currentBpm > hrMax) {
+    g.setColor("#ff0000");
+    g.setFont("6x8", 2).setFontAlign(0, 0);
+    g.drawString("MAX " + hrMax, W / 2, alertY);
   }
 }
 
@@ -118,6 +167,7 @@ Bangle.on('HRM', function(hrm) {
       lastBpmTime = getTime();
       if (bpmStableCount >= 2) {
         currentBpm = hrm.bpm;
+        bpmHistory.push({bpm: hrm.bpm, time: getTime()});
       }
     } else {
       bpmLastValue = hrm.bpm;
@@ -175,9 +225,9 @@ Bangle.on('touch', function(btn, e) {
     tremorSens = tremorSens + 1;
     if (tremorSens > 10) tremorSens = 1;
   } else if (e.y < g.getHeight() / 2 + 10) {
-    if (hrThreshold < 180) hrThreshold += 5;
+    if (spikeThresh < 40) spikeThresh = spikeThresh + 5;
   } else {
-    if (hrThreshold > 45) hrThreshold -= 5;
+    if (spikeThresh > 5) spikeThresh = spikeThresh - 5;
   }
   draw();
 });
