@@ -1,5 +1,5 @@
 var hrThreshold = 140;
-var tremorSens = 5;
+var tremorSens = 1;
 var isVibrating = false;
 var vibrationInterval = null;
 var currentBpm = null;
