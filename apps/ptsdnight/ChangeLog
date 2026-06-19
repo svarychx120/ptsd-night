@@ -10,3 +10,4 @@
 0.10: Replaced fixed BPM threshold with rapid spike detection (+BPM over 10s vs baseline)
 0.11: Lowered HRM confidence to 80, show confidence/history on display, extend spike window to 45s
 0.12: Added recovery hysteresis — alert stops only after 15s sustained calm
+0.13: Vibration now requires BOTH spike + tremor; default spike threshold 10

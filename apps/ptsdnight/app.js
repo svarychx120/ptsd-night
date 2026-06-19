@@ -1,5 +1,5 @@
 var hrMax = 140;
-var spikeThresh = 20;
+var spikeThresh = 10;
 var tremorSens = 1;
 var isVibrating = false;
 var vibrationInterval = null;
@@ -80,7 +80,7 @@ function checkBpmSpike() {
 function checkAlerts() {
   var spikeAlert = checkBpmSpike();
   var hrAlert = (currentBpm !== null && currentBpm > hrMax);
-  var anyAlert = (spikeAlert || hrAlert || tremorDetected);
+  var anyAlert = (spikeAlert || hrAlert) && tremorDetected;
 
   if (anyAlert) {
     calmStart = 0;
