@@ -20,6 +20,8 @@ var tremorTicks = 0;
 var tickCount = 0;
 var lastDraw = 0;
 var lastBpmTime = 0;
+var calmStart = 0;
+var RECOVERY = 15;
 
 function startVibrating() {
   if (isVibrating) return;
@@ -78,8 +80,18 @@ function checkBpmSpike() {
 function checkAlerts() {
   var spikeAlert = checkBpmSpike();
   var hrAlert = (currentBpm !== null && currentBpm > hrMax);
-  if (spikeAlert || hrAlert || tremorDetected) {
+  var anyAlert = (spikeAlert || hrAlert || tremorDetected);
+
+  if (anyAlert) {
+    calmStart = 0;
     startVibrating();
+  } else if (isVibrating) {
+    if (calmStart === 0) calmStart = getTime();
+    var calmSecs = getTime() - calmStart;
+    if (calmSecs >= RECOVERY) {
+      stopVibrating();
+      calmStart = 0;
+    }
   } else {
     stopVibrating();
   }
@@ -120,7 +132,13 @@ function draw() {
   g.setFont("6x8", 1).setFontAlign(-1, -1);
   g.drawString("T:" + tremorSens + "/10 t:" + tremorTicks + "/" + ACCEL_WIN + " c:" + lastConf, 4, 2);
   g.setFontAlign(1, -1);
-  g.drawString(isVibrating ? "ALERT" : "OK", W - 4, 2);
+  if (isVibrating && calmStart > 0) {
+    var remain = RECOVERY - (getTime() - calmStart);
+    if (remain < 0) remain = 0;
+    g.drawString("CALM " + remain, W - 4, 2);
+  } else {
+    g.drawString(isVibrating ? "ALERT" : "OK", W - 4, 2);
+  }
 
   g.setColor(g.theme.fg);
   g.setFont("Vector", 50).setFontAlign(0, 0);
