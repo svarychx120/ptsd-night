@@ -8,3 +8,4 @@
 0.08: Lowered count threshold and persistence for faster tremor response
 0.09: Default tremor sensitivity lowered to 1
 0.10: Replaced fixed BPM threshold with rapid spike detection (+BPM over 10s vs baseline)
+0.11: Lowered HRM confidence to 80, show confidence/history on display, extend spike window to 45s

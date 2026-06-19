@@ -2,7 +2,7 @@
   "name": "PTSD Night Watch",
   "shortName": "PTSD Night",
   "icon": "app.png",
-  "version": "0.10",
+  "version": "0.11",
   "author": "ptsdnight",
   "description": "Monitors heart rate and body tremors, vibrates continuously if high BPM or shaking is detected",
   "tags": "health,tool",

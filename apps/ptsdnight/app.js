@@ -9,6 +9,7 @@ var bpmStableCount = 0;
 var bpmLastValue = 0;
 var bpmHistory = [];
 var spikeDelta = 0;
+var lastConf = 0;
 var tremorDetected = false;
 var tremorLevel = 0;
 var tremorStable = 0;
@@ -39,7 +40,7 @@ function stopVibrating() {
 
 function checkBpmSpike() {
   var now = getTime();
-  while (bpmHistory.length > 0 && now - bpmHistory[0].time > 30) {
+  while (bpmHistory.length > 0 && now - bpmHistory[0].time > 45) {
     bpmHistory.shift();
   }
 
@@ -117,7 +118,7 @@ function draw() {
 
   g.setColor("#ffffff");
   g.setFont("6x8", 1).setFontAlign(-1, -1);
-  g.drawString("T:" + tremorSens + "/10  " + tremorTicks + "/" + ACCEL_WIN, 4, 2);
+  g.drawString("T:" + tremorSens + "/10 t:" + tremorTicks + "/" + ACCEL_WIN + " c:" + lastConf, 4, 2);
   g.setFontAlign(1, -1);
   g.drawString(isVibrating ? "ALERT" : "OK", W - 4, 2);
 
@@ -130,7 +131,7 @@ function draw() {
 
   g.setFont("6x8", 1).setFontAlign(0, 0);
   var deltaSign = spikeDelta >= 0 ? "+" : "";
-  g.drawString("Spike: " + deltaSign + spikeDelta + "  Limit: +" + spikeThresh, W / 2, H / 2 + 42);
+  g.drawString("Spike: " + deltaSign + spikeDelta + "  Limit: +" + spikeThresh + "  [" + bpmHistory.length + "]", W / 2, H / 2 + 42);
 
   var alertY = H / 2 + 60;
   var spikeAlert = (currentBpm !== null && spikeDelta >= spikeThresh && currentBpm >= 70);
@@ -154,24 +155,24 @@ function draw() {
 }
 
 Bangle.on('HRM', function(hrm) {
-  if (hrm.bpm && hrm.confidence > 90) {
+  lastConf = hrm.confidence || 0;
+  if (hrm.bpm && hrm.confidence > 80) {
     if (lastValidBpm === null) {
       lastValidBpm = hrm.bpm;
       bpmLastValue = hrm.bpm;
-      bpmStableCount = 1;
+      bpmStableCount = 2;
       lastBpmTime = getTime();
-    } else if (Math.abs(hrm.bpm - bpmLastValue) < 6) {
-      bpmStableCount = bpmStableCount + 1;
+      currentBpm = hrm.bpm;
+      bpmHistory.push({bpm: hrm.bpm, time: getTime()});
+    } else if (Math.abs(hrm.bpm - bpmLastValue) < 8) {
+      bpmStableCount = 2;
       bpmLastValue = hrm.bpm;
       lastValidBpm = hrm.bpm;
       lastBpmTime = getTime();
-      if (bpmStableCount >= 2) {
-        currentBpm = hrm.bpm;
-        bpmHistory.push({bpm: hrm.bpm, time: getTime()});
-      }
+      currentBpm = hrm.bpm;
+      bpmHistory.push({bpm: hrm.bpm, time: getTime()});
     } else {
       bpmLastValue = hrm.bpm;
-      bpmStableCount = 1;
     }
   }
 
