@@ -7,7 +7,9 @@ var lastValidBpm = null;
 function startVibrating() {
   if (isVibrating) return;
   isVibrating = true;
-  vibrationInterval = setInterval(() => Bangle.buzz(400, 1), 450);
+  vibrationInterval = setInterval(function() {
+    Bangle.buzz(400, 1);
+  }, 450);
 }
 
 function stopVibrating() {
