@@ -18,9 +18,23 @@ PTSD episodes, panic attacks, or high-stress moments.
 - Tap lower half of screen to lower HR threshold (-5)
 - Press the button to exit
 
-## Display
+## Bluetooth Log
 
-- Top bar: tremor sensitivity (T:1-10) and tremor level (L:0-100%)
-- Center: current BPM and HR threshold
-- Alerts: "TREMOR" or "HIGH BPM!" shown when detected
-- Top-right: "ALERT" or "OK" status
+The app exposes a BLE GATT service (`a19585e9-0001-49d0-015f-b3e2b9a0c854`) with
+three characteristics:
+
+| Characteristic | UUID | Properties | Description |
+|---|---|---|---|
+| Log | `...-0002-...` | Read, Notify | Newline-delimited JSON log entries (last ~220 bytes) |
+| Status | `...-0003-...` | Read, Notify | Live status JSON: bpm, conf, trm, trmLvl, trmTicks, spike, alert, entries |
+| CSV | `...-0004-...` | Read | Full CSV log (persisted to `ptsdnight.log` every 30s) |
+
+**Log entry types:**
+- `start` / `stop` — session start/end
+- `bpm` — heart rate reading with confidence
+- `tremor` — tremor state changes (detected/lost)
+- `alert` — alert triggered (reason: spike, max, spike+max)
+- `recovery` — alert cleared after sustained calm
+- `config` — sensitivity/threshold changes
+
+The log file is also written to on-watch storage as CSV for offline retrieval.
