@@ -70,13 +70,13 @@ function initBLE() {
   } catch(e) {}
 }
 
-function logEvent(type, data) {
+function logEvent(type, data, forceFlush) {
   var entry = {i: logFileIdx++, t: getTime(), type: type};
   for (var k in data) entry[k] = data[k];
   logEntries.push(entry);
   while (logEntries.length > LOG_MAX) logEntries.shift();
 
-  if (getTime() - lastBleNotify >= BLE_NOTIFY_MIN) {
+  if (forceFlush || getTime() - lastBleNotify >= BLE_NOTIFY_MIN) {
     flushBLE();
   }
 
@@ -230,7 +230,7 @@ function checkAlerts() {
         hrMax: hrMax,
         trmLvl: tremorLevel,
         reason: spikeAlert ? (hrAlert ? "spike+max" : "spike") : "max"
-      });
+      }, true);
       lastAlertLogged = true;
     }
   } else if (isVibrating) {
@@ -244,7 +244,7 @@ function checkAlerts() {
         bpm: currentBpm,
         trmLvl: tremorLevel,
         calmSecs: Math.floor(calmSecs)
-      });
+      }, true);
     }
   } else {
     stopVibrating();
@@ -257,7 +257,7 @@ var lastAlertLogged = false;
 function getTremorParams() {
   var diffMin = 0.08 - (tremorSens - 1) * 0.005;
   var diffMax = 0.22;
-  var countThresh = 18 - (tremorSens - 1) * 1;
+  var countThresh = 19 - (tremorSens - 1) * 1;
   return {diffMin: diffMin, diffMax: diffMax, countThresh: countThresh};
 }
 
@@ -331,28 +331,28 @@ function draw() {
 
 Bangle.on('HRM', function(hrm) {
   lastConf = hrm.confidence || 0;
-  if (hrm.bpm && hrm.confidence > 80) {
-    if (lastValidBpm === null) {
-      lastValidBpm = hrm.bpm;
+  if (hrm.bpm && hrm.confidence > 85) {
+    if (Math.abs(hrm.bpm - bpmLastValue) < 5) {
+      bpmStableCount = bpmStableCount + 1;
+      if (bpmStableCount > 250) bpmStableCount = 3;
       bpmLastValue = hrm.bpm;
-      bpmStableCount = 2;
-      lastBpmTime = getTime();
-      currentBpm = hrm.bpm;
-      bpmHistory.push({bpm: hrm.bpm, time: getTime()});
-      logEvent("bpm", {bpm: hrm.bpm, conf: hrm.confidence});
-    } else if (Math.abs(hrm.bpm - bpmLastValue) < 8) {
-      bpmStableCount = 2;
-      bpmLastValue = hrm.bpm;
-      lastValidBpm = hrm.bpm;
-      lastBpmTime = getTime();
-      currentBpm = hrm.bpm;
-      if (bpmHistory.length === 0 || bpmHistory[bpmHistory.length - 1].bpm !== hrm.bpm) {
-        bpmHistory.push({bpm: hrm.bpm, time: getTime()});
+      if (bpmStableCount >= 3) {
+        if (lastValidBpm === null || currentBpm !== hrm.bpm) {
+          lastValidBpm = hrm.bpm;
+          lastBpmTime = getTime();
+          currentBpm = hrm.bpm;
+          if (bpmHistory.length === 0 || bpmHistory[bpmHistory.length - 1].bpm !== hrm.bpm) {
+            bpmHistory.push({bpm: hrm.bpm, time: getTime()});
+          }
+          logEvent("bpm", {bpm: hrm.bpm, conf: hrm.confidence});
+        }
       }
-      logEvent("bpm", {bpm: hrm.bpm, conf: hrm.confidence});
     } else {
+      bpmStableCount = 0;
       bpmLastValue = hrm.bpm;
     }
+  } else {
+    bpmStableCount = 0;
   }
 
   if (getTime() - lastBpmTime > 10) {

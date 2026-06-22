@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTSD Night Watch — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --fg: #c9d1d9;
+  --muted: #8b949e;
+  --red: #ff4444;
+  --orange: #ff8800;
+  --green: #3fb950;
+  --blue: #58a6ff;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+header h1 { font-size: 18px; font-weight: 600; }
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-ok { background: var(--green); color: #000; }
+.badge-alert { background: var(--red); color: #fff; animation: pulse 0.5s infinite alternate; }
+.badge-disconnected { background: var(--muted); color: #000; }
+.badge-tremor { background: var(--orange); color: #000; }
+@keyframes pulse { from { opacity:1; } to { opacity:0.5; } }
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.card h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.card .value {
+  font-size: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.card .unit { font-size: 14px; font-weight: 400; color: var(--muted); }
+.bpm-ok { color: var(--green); }
+.bpm-warn { color: var(--orange); }
+.bpm-high { color: var(--red); }
+.charts { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 16px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.chart-card h3 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.chart-wrap { position: relative; height: 240px; }
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.log-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.log-card h3 {
+  font-size: 12px; text-transform: uppercase; color: var(--muted);
+  padding: 12px 14px 8px;
+}
+#log {
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+.log-line {
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+}
+.log-time { color: var(--muted); white-space: nowrap; }
+.log-type {
+  display: inline-block;
+  min-width: 55px;
+  padding: 0 6px;
+  border-radius: 3px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.log-type-alert { background: var(--red); color: #fff; }
+.log-type-tremor { background: var(--orange); color: #000; }
+.log-type-bpm { background: var(--blue); color: #000; }
+.log-type-recovery { background: var(--green); color: #000; }
+.log-type-start { background: #444; color: #fff; }
+.log-type-stop { background: #444; color: #fff; }
+.log-type-config { background: #666; color: #fff; }
+.log-msg { flex:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+button {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+button:hover { background: #21262d; }
+button.primary { background: var(--blue); border-color: var(--blue); color: #000; font-weight: 600; }
+button.primary:hover { background: #79c0ff; }
+button.danger { background: var(--red); border-color: var(--red); color: #fff; }
+button.danger:hover { opacity: 0.85; }
+#connectStatus { font-size: 13px; color: var(--muted); margin-left: 8px; }
+@media (max-width: 700px) {
+  .charts { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PTSD Night Watch</h1>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="bleStatus" class="badge badge-disconnected">BLE: disconnected</span>
+    <span id="alertBadge" class="badge badge-ok">No alert</span>
+  </div>
+</header>
+
+<main>
+  <div class="controls">
+    <button class="primary" id="btnConnect" onclick="connectBLE()">Connect Watch</button>
+    <button id="btnDisconnect" onclick="disconnectBLE()">Disconnect</button>
+    <button id="btnReport" onclick="downloadReport()" style="margin-left:auto">Download CSV Report</button>
+    <button id="btnSummary" onclick="showSummary()">Session Summary</button>
+    <span id="connectStatus"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card" id="cardBpm">
+      <h3>Heart Rate</h3>
+      <div class="value" id="valBpm">---</div>
+      <div class="unit">BPM</div>
+    </div>
+    <div class="card">
+      <h3>Confidence</h3>
+      <div class="value" id="valConf">---</div>
+      <div class="unit">%</div>
+    </div>
+    <div class="card">
+      <h3>Spike Delta</h3>
+      <div class="value" id="valSpike">---</div>
+      <div class="unit">BPM</div>
+    </div>
+    <div class="card">
+      <h3>Tremor</h3>
+      <div class="value" id="valTremor">---</div>
+      <div class="unit" id="valTremorUnit">level</div>
+    </div>
+    <div class="card">
+      <h3>Alerts</h3>
+      <div class="value" id="valAlerts">0</div>
+      <div class="unit">this session</div>
+    </div>
+    <div class="card">
+      <h3>Events</h3>
+      <div class="value" id="valEvents">0</div>
+      <div class="unit">logged</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <h3>BPM over time</h3>
+      <div class="chart-wrap"><canvas id="bpmChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Recent Alerts</h3>
+      <div class="chart-wrap" id="alertTimeline" style="overflow-y:auto; height:240px; padding:4px 0;"></div>
+    </div>
+  </div>
+
+  <div class="log-card">
+    <h3>Event Log (latest first)</h3>
+    <div id="log"></div>
+  </div>
+</main>
+
+<script>
+// ---- STATE ----
+let bpmHistory = [];
+let alertHistory = [];
+let totalAlerts = 0;
+let totalEvents = 0;
+let bleDevice = null;
+let bleServer = null;
+let bleConnected = false;
+let serverConnected = false;
+let logLines = [];
+
+// ---- CHART ----
+const ctx = document.getElementById('bpmChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'BPM',
+      data: [],
+      borderColor: '#58a6ff',
+      backgroundColor: 'rgba(88,166,255,0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { display: false },
+      y: { min: 40, max: 160, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+    },
+    plugins: { legend: { display: false } },
+    animation: false
+  }
+});
+
+function addBpmPoint(bpm) {
+  const now = new Date().toLocaleTimeString();
+  chart.data.labels.push(now);
+  chart.data.datasets[0].data.push(bpm);
+  if (chart.data.labels.length > 120) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+  chart.update();
+}
+
+function addAlertEntry(ev) {
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:6px 8px; border-bottom:1px solid var(--border); font-size:12px;';
+  div.innerHTML = `<span style="color:var(--red);font-weight:600;">ALERT</span>
+    <span style="color:var(--muted);">${new Date(ev.received || Date.now()).toLocaleTimeString()}</span>
+    <span>BPM:${ev.bpm||'?'} &Delta;+${ev.spike||'?'} reason:${ev.reason||'?'}</span>`;
+  const container = document.getElementById('alertTimeline');
+  container.prepend(div);
+  if (container.children.length > 50) container.lastChild.remove();
+}
+
+// ---- LOG ----
+function addLogLine(ev) {
+  const now = ev.received ? new Date(ev.received) : new Date();
+  const time = now.toLocaleTimeString();
+  let typeClass = 'log-type-' + (ev.type || 'unknown');
+  let msg = '';
+  if (ev.type === 'bpm') msg = `BPM ${ev.bpm}  conf:${ev.conf}%`;
+  else if (ev.type === 'alert') msg = `BPM ${ev.bpm}  spike:+${ev.spike}  reason:${ev.reason}  trm:${ev.trmLvl}`;
+  else if (ev.type === 'tremor') msg = `detected:${ev.trmDet}  level:${ev.trmLvl}  ticks:${ev.trmTicks}`;
+  else if (ev.type === 'recovery') msg = `calm after ${ev.calmSecs}s  BPM:${ev.bpm}`;
+  else if (ev.type === 'start') msg = `sens:${ev.tremorSens}  spikeThresh:${ev.spikeThresh}`;
+  else if (ev.type === 'stop') msg = `entries:${ev.entries}  BPM:${ev.bpm}`;
+  else if (ev.type === 'config') msg = `tremorSens:${ev.tremorSens}  spikeThresh:${ev.spikeThresh}`;
+  else msg = JSON.stringify(ev);
+
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${time}</span><span class="log-type ${typeClass}">${ev.type.toUpperCase()}</span><span class="log-msg">${msg}</span>`;
+
+  const log = document.getElementById('log');
+  log.prepend(line);
+  logLines.unshift(ev);
+  if (log.children.length > 200) log.lastChild.remove();
+  if (logLines.length > 500) logLines = logLines.slice(0, 500);
+}
+
+// ---- UI UPDATES ----
+function updateUI(ev) {
+  totalEvents++;
+  document.getElementById('valEvents').textContent = totalEvents;
+
+  if (ev.type === 'bpm') {
+    const bpm = ev.bpm;
+    document.getElementById('valBpm').textContent = bpm;
+    document.getElementById('valConf').textContent = ev.conf || '?';
+    document.getElementById('valSpike').textContent = ev.spike !== undefined ? (ev.spike >= 0 ? '+' + ev.spike : ev.spike) : '---';
+
+    const bpmEl = document.getElementById('valBpm');
+    bpmEl.className = 'value';
+    if (bpm >= 140) bpmEl.classList.add('bpm-high');
+    else if (bpm >= 110) bpmEl.classList.add('bpm-warn');
+    else bpmEl.classList.add('bpm-ok');
+
+    addBpmPoint(bpm);
+  }
+
+  if (ev.type === 'alert') {
+    totalAlerts++;
+    document.getElementById('valAlerts').textContent = totalAlerts;
+    document.getElementById('alertBadge').textContent = 'ALERT!';
+    document.getElementById('alertBadge').className = 'badge badge-alert';
+    addAlertEntry(ev);
+
+    if (Notification.permission === 'granted') {
+      new Notification('PTSD Night Watch — Alert!', {
+        body: `BPM: ${ev.bpm}  Spike: +${ev.spike}  Tremor: ${ev.trmLvl}`,
+        tag: 'ptsd-alert'
+      });
+    }
+    document.getElementById('cardBpm').style.boxShadow = '0 0 20px rgba(255,68,68,0.4)';
+  }
+
+  if (ev.type === 'recovery') {
+    document.getElementById('alertBadge').textContent = 'OK';
+    document.getElementById('alertBadge').className = 'badge badge-ok';
+    document.getElementById('cardBpm').style.boxShadow = '';
+  }
+
+  if (ev.type === 'tremor') {
+    if (ev.trmDet === 1) {
+      document.getElementById('valTremor').textContent = ev.trmLvl || 'YES';
+      document.getElementById('valTremorUnit').textContent = 'level';
+      document.getElementById('valTremor').style.color = 'var(--orange)';
+    } else {
+      document.getElementById('valTremor').textContent = 'None';
+      document.getElementById('valTremor').style.color = 'var(--fg)';
+      document.getElementById('valTremorUnit').textContent = '';
+    }
+  }
+
+  addLogLine(ev);
+}
+
+// ---- BLE CONNECTION ----
+const SVC = 'a19585e9-0001-49d0-015f-b3e2b9a0c854';
+const CHR_LOG = 'a19585e9-0002-49d0-015f-b3e2b9a0c854';
+const CHR_STATUS = 'a19585e9-0003-49d0-015f-b3e2b9a0c854';
+
+async function connectBLE() {
+  if (!navigator.bluetooth) {
+    document.getElementById('connectStatus').textContent = 'Web Bluetooth not available. Use Chrome/Edge.';
+    return;
+  }
+
+  document.getElementById('connectStatus').textContent = 'Scanning...';
+  document.getElementById('btnConnect').disabled = true;
+
+  try {
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'Bangle.js' }, { namePrefix: 'Bangle' }],
+      optionalServices: [SVC]
+    });
+
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnect);
+    bleServer = await bleDevice.gatt.connect();
+    const svc = await bleServer.getPrimaryService(SVC);
+
+    const logChar = await svc.getCharacteristic(CHR_LOG);
+    const statusChar = await svc.getCharacteristic(CHR_STATUS);
+
+    await logChar.startNotifications();
+    logChar.addEventListener('characteristicvaluechanged', handleLogNotify);
+
+    await statusChar.startNotifications();
+    statusChar.addEventListener('characteristicvaluechanged', handleStatusNotify);
+
+    bleConnected = true;
+    updateBleStatus('connected');
+    document.getElementById('connectStatus').textContent = 'Connected to ' + bleDevice.name;
+    document.getElementById('btnDisconnect').disabled = false;
+
+  } catch (e) {
+    console.error('BLE connect failed:', e);
+    document.getElementById('connectStatus').textContent = 'Failed: ' + e.message;
+    document.getElementById('btnConnect').disabled = false;
+    bleConnected = false;
+  }
+}
+
+function onDisconnect() {
+  bleConnected = false;
+  updateBleStatus('disconnected');
+  document.getElementById('connectStatus').textContent = 'Watch disconnected';
+  document.getElementById('btnConnect').disabled = false;
+  document.getElementById('btnDisconnect').disabled = true;
+}
+
+function disconnectBLE() {
+  if (bleDevice && bleDevice.gatt.connected) {
+    bleDevice.gatt.disconnect();
+  }
+  bleConnected = false;
+  updateBleStatus('disconnected');
+  document.getElementById('btnConnect').disabled = false;
+  document.getElementById('btnDisconnect').disabled = true;
+  document.getElementById('connectStatus').textContent = 'Disconnected';
+}
+
+function updateBleStatus(state) {
+  const el = document.getElementById('bleStatus');
+  if (state === 'connected') {
+    el.textContent = 'BLE: connected';
+    el.className = 'badge badge-ok';
+  } else {
+    el.textContent = 'BLE: disconnected';
+    el.className = 'badge badge-disconnected';
+  }
+}
+
+function handleLogNotify(event) {
+  const value = new TextDecoder().decode(event.target.value);
+  const lines = value.split('\n').filter(l => l.trim());
+  for (const line of lines) {
+    try {
+      const ev = JSON.parse(line);
+      if (ev.t) {
+        ev.received = new Date(ev.t * 1000).toISOString();
+      }
+      updateUI(ev);
+
+      ev._source = 'browser';
+      fetch('/api/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ev)
+      }).catch(() => {});
+    } catch (e) {
+      console.warn('Bad BLE log line:', line);
+    }
+  }
+}
+
+function handleStatusNotify(event) {
+  const value = new TextDecoder().decode(event.target.value);
+  try {
+    const st = JSON.parse(value);
+    if (st.bpm) {
+      document.getElementById('valBpm').textContent = st.bpm;
+    }
+    if (st.conf !== undefined) {
+      document.getElementById('valConf').textContent = st.conf;
+    }
+    if (st.spike !== undefined) {
+      document.getElementById('valSpike').textContent = st.spike >= 0 ? '+' + st.spike : st.spike;
+    }
+    if (st.trmLvl !== undefined) {
+      if (st.trm === 1) {
+        document.getElementById('valTremor').textContent = st.trmLvl;
+        document.getElementById('valTremor').style.color = 'var(--orange)';
+        document.getElementById('valTremorUnit').textContent = 'level';
+      } else {
+        document.getElementById('valTremor').textContent = 'None';
+        document.getElementById('valTremor').style.color = 'var(--fg)';
+        document.getElementById('valTremorUnit').textContent = '';
+      }
+    }
+    if (st.alert === 1) {
+      document.getElementById('alertBadge').textContent = 'ALERT!';
+      document.getElementById('alertBadge').className = 'badge badge-alert';
+    } else {
+      document.getElementById('alertBadge').textContent = 'OK';
+      document.getElementById('alertBadge').className = 'badge badge-ok';
+    }
+    document.getElementById('valEvents').textContent = st.entries || totalEvents;
+  } catch (e) {}
+}
+
+// ---- SERVER CONNECTION ----
+const socket = io();
+
+socket.on('connect', () => {
+  serverConnected = true;
+  console.log('Server connected via Socket.io');
+});
+
+socket.on('disconnect', () => {
+  serverConnected = false;
+});
+
+socket.on('event', (ev) => {
+  if (ev._source !== 'browser') {
+    updateUI(ev);
+  }
+});
+
+// ---- REPORT ----
+function downloadReport() {
+  window.open('/api/report/csv', '_blank');
+}
+
+async function showSummary() {
+  try {
+    const resp = await fetch('/api/report/summary');
+    const s = await resp.json();
+    const msg = [
+      `Sessions: ${s.sessions}`,
+      `Total Events: ${s.totalEvents}`,
+      `Total Alerts: ${s.totalAlerts} (spike: ${s.spikeAlerts}, max: ${s.maxAlerts})`,
+      `Tremor Events: ${s.tremorEvents}`,
+      `Avg BPM: ${s.avgBpm}  Peak: ${s.peakBpm}  Low: ${s.lowBpm}`,
+      `Last BPM: ${s.lastBpm || 'N/A'}`,
+      s.lastAlert ? `Last Alert: ${new Date(s.lastAlert).toLocaleString()}` : 'No alerts recorded',
+      s.currentSession ? `Active session started: ${new Date(s.currentSession.started).toLocaleString()}` : 'No active session'
+    ].join('\n');
+    alert(msg);
+  } catch (e) {
+    alert('Server not available for summary. Use local data only.');
+  }
+}
+
+// ---- INIT ----
+document.addEventListener('DOMContentLoaded', () => {
+  // Request notification permission
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  // Auto-reconnect BLE if previously paired
+  if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+    navigator.bluetooth.getDevices().then(devices => {
+      if (devices.length > 0) {
+        document.getElementById('connectStatus').textContent =
+          `${devices.length} paired device(s) found. Click Connect.`;
+      }
+    });
+  }
+});
+</script>
+
+</body>
+</html>

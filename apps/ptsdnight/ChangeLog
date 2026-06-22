@@ -11,3 +11,4 @@
 0.11: Lowered HRM confidence to 80, show confidence/history on display, extend spike window to 45s
 0.12: Added recovery hysteresis — alert stops only after 15s sustained calm
 0.13: Vibration now requires BOTH spike + tremor; default spike threshold 10
+0.14: BPM filter now requires 3 consecutive readings within 5 BPM (was 2 within 8); confidence raised 80->85; tremor countThresh +1 for slightly lower sensitivity; force BLE flush on alert/recovery for near-real-time dashboard

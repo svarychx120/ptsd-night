@@ -1,0 +1,44 @@
+{
+  "events": [
+    {
+      "type": "start",
+      "tremorSens": 1,
+      "spikeThresh": 10,
+      "received": "2026-06-22T09:52:45.694Z",
+      "sent": "2026-06-22T09:52:45.694Z"
+    },
+    {
+      "type": "bpm",
+      "bpm": 68,
+      "conf": 92,
+      "received": "2026-06-22T09:52:45.721Z",
+      "sent": "2026-06-22T09:52:45.721Z"
+    },
+    {
+      "type": "alert",
+      "bpm": 122,
+      "spike": 35,
+      "reason": "spike",
+      "trmLvl": 55,
+      "received": "2026-06-22T09:52:45.735Z",
+      "sent": "2026-06-22T09:52:45.735Z"
+    },
+    {
+      "type": "recovery",
+      "bpm": 70,
+      "calmSecs": 15,
+      "received": "2026-06-22T09:52:45.962Z",
+      "sent": "2026-06-22T09:52:45.962Z"
+    },
+    {
+      "type": "alert",
+      "bpm": 130,
+      "spike": 42,
+      "reason": "spike+max",
+      "trmLvl": 60,
+      "received": "2026-06-22T09:52:46.063Z",
+      "sent": "2026-06-22T09:52:46.063Z"
+    }
+  ],
+  "sessions": []
+}
