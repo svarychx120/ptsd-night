@@ -1,4 +1,4 @@
-Bangle.js App Loader (and Apps)
+Bangle.js App Loader (and Apps) 
 ================================
 
 [![Build Status](https://github.com/espruino/BangleApps/actions/workflows/nodejs.yml/badge.svg)](https://github.com/espruino/BangleApps/actions/workflows/nodejs.yml)
