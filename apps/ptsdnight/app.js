@@ -331,12 +331,12 @@ function draw() {
 
 Bangle.on('HRM', function(hrm) {
   lastConf = hrm.confidence || 0;
-  if (hrm.bpm && hrm.confidence > 85) {
-    if (Math.abs(hrm.bpm - bpmLastValue) < 5) {
+  if (hrm.bpm && hrm.confidence > 70) {
+    if (bpmLastValue === 0 || Math.abs(hrm.bpm - bpmLastValue) < 5) {
       bpmStableCount = bpmStableCount + 1;
       if (bpmStableCount > 250) bpmStableCount = 3;
       bpmLastValue = hrm.bpm;
-      if (bpmStableCount >= 3) {
+      if (bpmStableCount >= 2) {
         if (lastValidBpm === null || currentBpm !== hrm.bpm) {
           lastValidBpm = hrm.bpm;
           lastBpmTime = getTime();
@@ -355,7 +355,7 @@ Bangle.on('HRM', function(hrm) {
     bpmStableCount = 0;
   }
 
-  if (getTime() - lastBpmTime > 10) {
+  if (getTime() - lastBpmTime > 15) {
     currentBpm = null;
     lastValidBpm = null;
     bpmStableCount = 0;
