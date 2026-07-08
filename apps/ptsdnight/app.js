@@ -5,8 +5,6 @@ var isVibrating = false;
 var vibrationInterval = null;
 var currentBpm = null;
 var lastValidBpm = null;
-var bpmStableCount = 0;
-var bpmLastValue = 0;
 var bpmHistory = [];
 var spikeDelta = 0;
 var lastConf = 0;
@@ -331,34 +329,21 @@ function draw() {
 
 Bangle.on('HRM', function(hrm) {
   lastConf = hrm.confidence || 0;
-  if (hrm.bpm && hrm.confidence > 70) {
-    if (bpmLastValue === 0 || Math.abs(hrm.bpm - bpmLastValue) < 5) {
-      bpmStableCount = bpmStableCount + 1;
-      if (bpmStableCount > 250) bpmStableCount = 3;
-      bpmLastValue = hrm.bpm;
-      if (bpmStableCount >= 2) {
-        if (lastValidBpm === null || currentBpm !== hrm.bpm) {
-          lastValidBpm = hrm.bpm;
-          lastBpmTime = getTime();
-          currentBpm = hrm.bpm;
-          if (bpmHistory.length === 0 || bpmHistory[bpmHistory.length - 1].bpm !== hrm.bpm) {
-            bpmHistory.push({bpm: hrm.bpm, time: getTime()});
-          }
-          logEvent("bpm", {bpm: hrm.bpm, conf: hrm.confidence});
-        }
-      }
-    } else {
-      bpmStableCount = 0;
-      bpmLastValue = hrm.bpm;
+
+  if (hrm.bpm && hrm.confidence > 50) {
+    lastBpmTime = getTime();
+    lastValidBpm = hrm.bpm;
+    currentBpm = hrm.bpm;
+
+    if (bpmHistory.length === 0 || bpmHistory[bpmHistory.length - 1].bpm !== hrm.bpm) {
+      bpmHistory.push({bpm: hrm.bpm, time: getTime()});
     }
-  } else {
-    bpmStableCount = 0;
+    logEvent("bpm", {bpm: hrm.bpm, conf: hrm.confidence});
   }
 
   if (getTime() - lastBpmTime > 15) {
     currentBpm = null;
     lastValidBpm = null;
-    bpmStableCount = 0;
   }
 
   checkAlerts();
