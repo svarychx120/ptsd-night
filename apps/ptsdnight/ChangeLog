@@ -13,3 +13,4 @@
 0.13: Vibration now requires BOTH spike + tremor; default spike threshold 10
 0.14: BPM filter now requires 3 consecutive readings within 5 BPM (was 2 within 8); confidence raised 80->85; tremor countThresh +1 for slightly lower sensitivity; force BLE flush on alert/recovery for near-real-time dashboard
 0.15: Stripped BPM filter entirely — now accepts any reading with confidence > 50 (matches standard HRM app). Removed stability check and consecutive-reading requirement that prevented BPM from ever displaying. Removed unused bpmStableCount/bpmLastValue.
+0.16: Bump version to trigger app loader update detection
