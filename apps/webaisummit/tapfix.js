@@ -1,1 +1,0 @@
-Bangle.accelWr(0x18, Bangle.accelRd(0x18)&127);Bangle.accelWr(0x25, 0x50);Bangle.accelWr(0x18, Bangle.accelRd(0x18)|128);

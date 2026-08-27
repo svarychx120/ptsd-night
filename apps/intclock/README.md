@@ -1,4 +1,0 @@
-# Interlaced Clock
-
-![](screenshot.png)
-
