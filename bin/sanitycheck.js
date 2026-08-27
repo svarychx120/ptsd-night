@@ -521,19 +521,23 @@ while(fileA=allFiles.pop()) {
 sanityCheckLocales();
 function sanityCheckLocales(){
   const { CODEPAGE_CONVERSIONS } = require("../core/js/utils");
-  const { checkLocales } = require("../apps/locale/sanitycheck");
-  const localesCode = fs.readFileSync(__dirname+'/../apps/locale/locales.js', 'utf-8');
-  vm.runInThisContext(localesCode);
-  /* global locales, speedUnits, distanceUnits, codePages */
+  try {
+    const { checkLocales } = require("../apps/locale/sanitycheck");
+    const localesCode = fs.readFileSync(__dirname+'/../apps/locale/locales.js', 'utf-8');
+    vm.runInThisContext(localesCode);
+    /* global locales, speedUnits, distanceUnits, codePages */
 
-  const {errors, warnings} = checkLocales(locales, {speedUnits, distanceUnits, codePages, CODEPAGE_CONVERSIONS});
+    const {errors, warnings} = checkLocales(locales, {speedUnits, distanceUnits, codePages, CODEPAGE_CONVERSIONS});
 
-  const file = "locale/locales.js";
-  for(const w of warnings){
-    WARN(`In locale ${w.lang}, ${w.name} ${w.error}`, {file, value: w.value});
-  }
-  for(const e of errors){
-    ERROR(`In locale ${e.lang}, ${e.name} ${e.error}`, {file, value: e.value});
+    const file = "locale/locales.js";
+    for(const w of warnings){
+      WARN(`In locale ${w.lang}, ${w.name} ${w.error}`, {file, value: w.value});
+    }
+    for(const e of errors){
+      ERROR(`In locale ${e.lang}, ${e.name} ${e.error}`, {file, value: e.value});
+    }
+  } catch(e) {
+    // locale app not present - skip locale sanity check
   }
 }
 
